@@ -1,6 +1,6 @@
 const WebSocket = require("ws");
 
-const server = new WebSocket.Server({ port: 9090 });
+const server = new WebSocket.Server({ port: process.env.PORT || 3000 });
 
 let robots = {}; // {"robot1": [client1, client2], "robot2": [client3]}
 
