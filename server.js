@@ -3,14 +3,12 @@ const WebSocket = require("ws");
 const server = new WebSocket.Server({ port: process.env.PORT || 3000 });
 
 let robots = {}; // {"robot1": [client1, client2], "robot2": [client3]}
-let clients = []; // Müştəriləri saxlayacaq array
 
 server.on("connection", (ws) => {
     console.log("Yeni müştəri qoşuldu!");
 
     let assignedRobot = null;
 
-    // Müştəri ilə mesaj alış-verişi
     ws.on("message", (message) => {
         try {
             let data = JSON.parse(message);
@@ -25,32 +23,15 @@ server.on("connection", (ws) => {
                 console.log(`Müştəri ${assignedRobot} robotuna qeydiyyatdan keçdi`);
                 ws.send(JSON.stringify({ type: "info", message: `Robot ${assignedRobot} ilə qeydiyyatdan keçdi` }));
 
-                // Komanda göndərilməsi
-            } else if (data.type === "command" && assignedRobot) {
-                console.log(`Komanda: ${assignedRobot} üçün ${data.command}`);
+            } else if (data.type === "video" && data.robotName) {
+                // Canlı video frame-ləri almaq
+                console.log(`Canlı video frame-i: ${data.robotName}`);
+                // Burada base64 şəkli müştərilərə göndərin
                 robots[assignedRobot].forEach(client => {
                     if (client !== ws && client.readyState === WebSocket.OPEN) {
-                        client.send(JSON.stringify({ type: "command", command: data.command }));
+                        client.send(JSON.stringify({ type: "video", data: data.data }));
                     }
                 });
-
-                // Sensor məlumatlarının alındığı vəziyyət
-            } else if (data.type === "sensorData" && data.robotName) {
-                console.log(`Sensor məlumatı: ${data.robotName} robotundan alındı`);
-                // Sensor məlumatlarını hər kəsə yay
-                clients.forEach(client => {
-                    if (client.readyState === WebSocket.OPEN) {
-                        client.send(JSON.stringify({
-                            type: "sensorData",
-                            robotName: data.robotName,
-                            data: data.data
-                        }));
-                    }
-                });
-
-                // Yanlış tələblər
-            } else {
-                ws.send(JSON.stringify({ type: "error", message: "Yanlış sorğu" }));
             }
 
         } catch (e) {
@@ -58,7 +39,6 @@ server.on("connection", (ws) => {
         }
     });
 
-    // Müştəri ilə əlaqə kəsildikdə
     ws.on("close", () => {
         console.log("Müştəri əlaqəni kəsdi");
         if (assignedRobot && robots[assignedRobot]) {
@@ -67,13 +47,8 @@ server.on("connection", (ws) => {
                 delete robots[assignedRobot];
             }
         }
-
-        // Müştəriyi clients array-dən sil
-        clients = clients.filter(client => client !== ws);
     });
-
-    // Yeni müştəriyi `clients` array-ə əlavə et
-    clients.push(ws);
 });
 
 console.log(`WebSocket serveri portda ${process.env.PORT || 3000} başladıldı`);
+
