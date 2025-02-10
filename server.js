@@ -1,51 +1,36 @@
 const WebSocket = require("ws");
+const express = require("express");
 
-const server = new WebSocket.Server({ port: process.env.PORT || 3000 });
+const app = express();
+const server = require("http").createServer(app);
+const wss = new WebSocket.Server({ server });
 
-let robots = {}; // {"robot1": [client1, client2], "robot2": [client3]}
+let lastImage = null;
 
-server.on("connection", (ws) => {
-    console.log("New client connected!");
+wss.on("connection", function connection(ws) {
+    console.log("Yeni müştəri qoşuldu!");
 
-    let assignedRobot = null;
+    // Əgər müştəri qoşularsa, ona sonuncu görüntünü göndər
+    if (lastImage) {
+        ws.send(lastImage);
+    }
 
-    ws.on("message", (message) => {
-        try {
-            let data = JSON.parse(message);
-
-            if (data.type === "register" && data.robotName) {
-                assignedRobot = data.robotName;
-                if (!robots[assignedRobot]) {
-                    robots[assignedRobot] = [];
-                }
-                robots[assignedRobot].push(ws);
-                console.log(`Client registered to robot: ${assignedRobot}`);
-                ws.send(JSON.stringify({ type: "info", message: `Registered to ${assignedRobot}` }));
+    ws.on("message", function incoming(data) {
+        lastImage = data;  // Sonuncu şəkli yadda saxla
+        wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(data);
             }
-            else if (data.type === "command" && assignedRobot) {
-                console.log(`Command for ${assignedRobot}: ${data.command}`);
-                robots[assignedRobot].forEach(client => {
-                    if (client !== ws && client.readyState === WebSocket.OPEN) {
-                        client.send(JSON.stringify({ type: "command", command: data.command }));
-                    }
-                });
-            }
-            else {
-                ws.send(JSON.stringify({ type: "error", message: "Invalid request" }));
-            }
-        } catch (e) {
-            ws.send(JSON.stringify({ type: "error", message: "Invalid JSON format" }));
-        }
+        });
     });
 
-    ws.on("close", () => {
-        console.log("Client disconnected");
-        if (assignedRobot && robots[assignedRobot]) {
-            robots[assignedRobot] = robots[assignedRobot].filter(client => client !== ws);
-            if (robots[assignedRobot].length === 0) {
-                delete robots[assignedRobot];
-            }
-        }
+    ws.on("close", function () {
+        console.log("Müştəri bağlantısı kəsildi.");
     });
 });
 
+app.use(express.static("public")); // HTML səhifəsini göstərmək üçün
+
+server.listen(8080, function () {
+    console.log("Server 8080 portunda işləyir...");
+});
