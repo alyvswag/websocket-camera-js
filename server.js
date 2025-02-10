@@ -32,5 +32,5 @@ wss.on("connection", function connection(ws) {
 app.use(express.static("public")); // HTML səhifəsini göstərmək üçün
 
 server.listen(9090, function () {
-    console.log("Server 8080 portunda işləyir...");
+    console.log("Server 9090 portunda işləyir...");
 });
